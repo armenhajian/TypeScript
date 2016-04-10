@@ -253,6 +253,12 @@ namespace ts {
             setWriter(oldWriter);
         }
 
+        function recordTypeReferenceDirectivesIfNecessary(typeReferenceDirectives: string[]): void {
+            if (!typeReferenceDirectives) {
+                return;
+            }
+        }
+        
         function handleSymbolAccessibilityError(symbolAccessibilityResult: SymbolAccessibilityResult) {
             if (symbolAccessibilityResult.accessibility === SymbolAccessibility.Accessible) {
                 // write the aliases
@@ -284,6 +290,7 @@ namespace ts {
 
         function trackSymbol(symbol: Symbol, enclosingDeclaration?: Node, meaning?: SymbolFlags) {
             handleSymbolAccessibilityError(resolver.isSymbolAccessible(symbol, enclosingDeclaration, meaning));
+            recordTypeReferenceDirectivesIfNecessary(resolver.getTypeReferenceDirectivesForSymbol(symbol, meaning));
         }
 
         function reportInaccessibleThisError() {
@@ -420,6 +427,7 @@ namespace ts {
                     entityName.parent.kind === SyntaxKind.ImportEqualsDeclaration ? entityName.parent : enclosingDeclaration);
 
                 handleSymbolAccessibilityError(visibilityResult);
+                recordTypeReferenceDirectivesIfNecessary(resolver.getTypeReferenceDirectivesForEntityName(entityName));
                 writeEntityName(entityName);
             }
 
