@@ -5409,7 +5409,7 @@ const _super = (function (geti, seti) {
                         //
 
                         // NOTE: we reuse the same rewriting logic for cases when targeting ES6 and module kind is System.
-                        // Because of hoisting top level class declaration need to be emitted as class expressions. 
+                        // Because of hoisting top level class declaration need to be emitted as class expressions.
                         // Double bind case is only required if node is decorated.
                         if (isDecorated && resolver.getNodeCheckFlags(node) & NodeCheckFlags.ClassWithBodyScopedClassBinding) {
                             decoratedClassAlias = unescapeIdentifier(makeUniqueName(node.name ? node.name.text : "default"));
@@ -7307,8 +7307,34 @@ const _super = (function (geti, seti) {
                 }
             }
 
+            function writeModuleName_ECL(node: SourceFile, emitRelativePathAsModuleName?: boolean): void {
+                let moduleName = node.moduleName;
+                //var fpath = node.path.split('/');
+                //fpath[fpath.length-1] = 'tsconfig.json';
+                //var result = readConfigFile('tsconfig.json', function (path) { return ts.sys.readFile(fpath.join('/')); });
+                //
+                //console.info();
+                //console.info(result.config.compilerOptions);
+
+                if (moduleName || (emitRelativePathAsModuleName && (moduleName = getResolvedExternalModuleName(host, node)))) {
+                    write(`${moduleName}`);
+                }
+            }
+
             function emitSystemModule(node: SourceFile,  emitRelativePathAsModuleName?: boolean): void {
+                var sourceFile = node;
+                //Object.keys(node).forEach(function(key) {
+                //    if(key == SyntaxKind.SourceFile) {
+                //        var val = node.externalModuleIndicator.importClause.namedBindings;
+                //        console.log(val)
+                //    }
+                //
+                //});
+
                 collectExternalModuleInfo(node);
+                console.info('***********');
+                var a = getNamespaceDeclarationNode(node);
+                console.info(a);
                 // System modules has the following shape
                 // System.register(['dep-1', ... 'dep-n'], function(exports) {/* module body function */})
                 // 'exports' here is a function 'exports<T>(name: string, value: T): T' that is used to publish exported values.
@@ -7321,7 +7347,102 @@ const _super = (function (geti, seti) {
                 // make sure that  name of 'exports' function does not conflict with existing identifiers
                 exportFunctionForFile = makeUniqueName("exports");
                 contextObjectForFile = makeUniqueName("context");
+
                 writeLine();
+                write("Ecl('");                                  //Ecl start
+                writeModuleName_ECL(node, true);
+                write("', {");
+                writeLine();
+                increaseIndent();
+                write("execute: function () {");                 //execute function start
+                    writeLine();
+                    increaseIndent();
+                        write("with (this) {");
+                    writeLine();
+                    increaseIndent();
+                        write("// definition");
+                    writeLine();
+                        write("return function () {");
+                    writeLine();
+                    increaseIndent();
+                        write("//'statement';");
+                    writeLine();
+                        write("return 'default expression';");
+                    decreaseIndent();
+                    writeLine();
+                    write("}");
+                    writeLine();
+                    decreaseIndent();
+                    write("}")
+                    writeLine();
+                    decreaseIndent();
+                write("},");                                    //execute function end
+                decreaseIndent();
+                increaseIndent();
+                writeLine();
+                write("imports: {");                            //imports start
+                    writeLine();
+                    increaseIndent();
+
+                        const groupIndices1: Map<number> = {};
+                        const dependencyGroups1: DependencyGroup[] = [];
+                        for (let i = 0; i < externalImports.length; i++) {
+
+                            //console.info(<any>(<any>(<any>(a.importClause).parent).parent).imports);
+                            //console.info(externalImports[i].parent.statements);
+                            //console.info(externalImports[i].parent.imports);
+                            //console.info(externalImports[i].parent.resolvedModules);
+                            //console.info(externalImports[i].parent.importClause);
+                            const text = getExternalModuleNameText(externalImports[i], emitRelativePathAsModuleName);
+                            if (text === undefined) {
+                                continue;
+                            }
+                            debugger;
+                            console.log('***************************************');
+                            //console.log(<any>(<any>(<any>externalImports[i]).parent.imports)[0]);
+                            // text should be quoted string
+                            // for deduplication purposes in key remove leading and trailing quotes so 'a' and "a" will be considered the same
+                            const key = text.substr(1, text.length - 2);
+
+                            if (hasProperty(groupIndices1, key)) {
+                                // deduplicate/group entries in dependency list by the dependency name
+                                const groupIndex = groupIndices1[key];
+                                dependencyGroups1[groupIndex].push(externalImports[i]);
+                                continue;
+                            }
+                            else {
+                                groupIndices1[key] = dependencyGroups1.length;
+                                dependencyGroups1.push([externalImports[i]]);
+                            }
+                            //console.log('***************************************')
+                            //console.log(emitEmitHelpers(node));
+                            if (i !== 0) {
+                                write(", ");
+                            }
+
+                            write(text);
+                        }
+
+                    decreaseIndent();
+                    writeLine();
+                write("},");                                    //imports end
+                decreaseIndent();
+                increaseIndent();
+                writeLine();
+                write("exports: {");                            //exports start
+                    writeLine();
+                    increaseIndent();
+                        write("// here goes exports ... ");
+                    decreaseIndent();
+                    writeLine();
+                write("}");                                    //exports end
+                decreaseIndent();
+                writeLine();
+                write("});");                                   //Ecl end
+
+                writeLine();
+                writeLine();
+
                 write("System.register(");
                 writeModuleName(node, emitRelativePathAsModuleName);
                 write("[");

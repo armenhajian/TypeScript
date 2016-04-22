@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "noImplicitAny": true,
+        "removeComments": true,
+        "preserveConstEnums": true,
+        "outDir": "out",
+        "sourceMap": true,
+        "module":"system"
+    },
+    "files": [
+        "math.ts",
+        "someApp.ts",
+        "otherApp.ts"
+    ]
+}
